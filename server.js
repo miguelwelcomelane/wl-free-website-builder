@@ -14,7 +14,8 @@ app.use(express.static('public'));
 // ─── PREVIEW STORE — in-memory + file-backed ─────────────────────────────────
 // In-memory for fast access, persisted to ./previews/ so links survive restarts.
 const previewStore = new Map();
-const PREVIEW_DIR = path.join(__dirname, 'previews');
+// Vercel filesystem is read-only except /tmp; use /tmp on serverless, local dir otherwise
+const PREVIEW_DIR = process.env.VERCEL ? '/tmp/previews' : path.join(__dirname, 'previews');
 if (!fs.existsSync(PREVIEW_DIR)) fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 // Restore existing previews from disk on startup
