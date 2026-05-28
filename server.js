@@ -1025,33 +1025,65 @@ app.post('/api/download', (req, res) => {
 app.post('/api/lead', async (req, res) => {
   console.log('[LEAD]', new Date().toISOString(), req.body);
 
-  if (process.env.GHL_WEBHOOK_URL) {
-    const sourceLabel = {
-      instagram:  'Instagram / Beacons.ai',
-      'meta-ads': 'Meta Ads',
-      'cold-call': 'Cold Call Outreach',
-      direct: 'Direct / Unknown',
-    }[req.body.leadSource] || req.body.leadSource || 'Direct / Unknown';
+  const GHL_API_KEY  = process.env.GHL_API_KEY  || 'pit-cc5ec3f9-9da8-4284-87dd-1435a31e20fc';
+  const GHL_LOCATION = process.env.GHL_LOCATION_ID || 'z05oVILgZmZ88xWvq2iL';
+  const GHL_PIPELINE = process.env.GHL_PIPELINE_ID || 'FIWbno1FR6qwtyOpuiyG';
+  const GHL_STAGE    = process.env.GHL_STAGE_ID    || '5acb44c0-122c-47d0-956c-027002d2571e';
 
-    try {
-      await fetch(process.env.GHL_WEBHOOK_URL, {
+  const sourceLabel = {
+    instagram:   'Instagram / Beacons.ai',
+    'meta-ads':  'Meta Ads',
+    'cold-call': 'Cold Call Outreach',
+    direct:      'Direct / Unknown',
+  }[req.body.leadSource] || req.body.leadSource || 'Direct / Unknown';
+
+  try {
+    // 1 — Create / update GHL contact
+    const contactRes = await fetch('https://services.leadconnectorhq.com/contacts/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GHL_API_KEY}`,
+        'Version': '2021-07-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        firstName:    req.body.firstName || '',
+        lastName:     req.body.lastName  || '',
+        email:        req.body.email     || '',
+        phone:        req.body.phone     || '',
+        companyName:  req.body.businessName || '',
+        locationId:   GHL_LOCATION,
+        source:       `Free Website Builder — ${sourceLabel}`,
+        tags:         ['website-builder', `source:${req.body.leadSource || 'direct'}`, req.body.palette || ''].filter(Boolean),
+        customFields: [{ key: 'lead_source_detail', field_value: sourceLabel }],
+      }),
+    });
+    const contactData = await contactRes.json();
+    const contactId = contactData?.contact?.id;
+    console.log(`[LEAD] → GHL contact created ${contactId} | source:${req.body.leadSource || 'direct'}`);
+
+    // 2 — Add to Revenue Loop pipeline
+    if (contactId) {
+      await fetch('https://services.leadconnectorhq.com/opportunities/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${GHL_API_KEY}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
-          email: req.body.email,
-          phone: req.body.phone,
-          businessName: req.body.businessName,
-          source: `Free Website Builder — ${sourceLabel}`,
-          leadSource: req.body.leadSource || 'direct',
-          tags: ['website-builder', `source:${req.body.leadSource || 'direct'}`, req.body.palette || '', req.body.fontPair || ''].filter(Boolean),
+          pipelineId: GHL_PIPELINE,
+          locationId: GHL_LOCATION,
+          name:       `${req.body.businessName || req.body.firstName || 'Lead'} — ${sourceLabel}`,
+          pipelineStageId: GHL_STAGE,
+          contactId,
+          status: 'open',
         }),
       });
-      console.log(`[LEAD] → GHL sent | source:${req.body.leadSource || 'direct'}`);
-    } catch (e) {
-      console.error('[GHL webhook error]', e.message);
+      console.log(`[LEAD] → GHL opportunity created in Revenue Loop pipeline`);
     }
+  } catch (e) {
+    console.error('[GHL API error]', e.message);
   }
 
   res.json({ ok: true });
