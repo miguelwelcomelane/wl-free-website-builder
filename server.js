@@ -9,7 +9,7 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── PREVIEW STORE — in-memory + file-backed ─────────────────────────────────
 // In-memory for fast access, persisted to ./previews/ so links survive restarts.
