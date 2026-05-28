@@ -1026,6 +1026,13 @@ app.post('/api/lead', async (req, res) => {
   console.log('[LEAD]', new Date().toISOString(), req.body);
 
   if (process.env.GHL_WEBHOOK_URL) {
+    const sourceLabel = {
+      instagram:  'Instagram / Beacons.ai',
+      'meta-ads': 'Meta Ads',
+      'cold-call': 'Cold Call Outreach',
+      direct: 'Direct / Unknown',
+    }[req.body.leadSource] || req.body.leadSource || 'Direct / Unknown';
+
     try {
       await fetch(process.env.GHL_WEBHOOK_URL, {
         method: 'POST',
@@ -1036,11 +1043,12 @@ app.post('/api/lead', async (req, res) => {
           email: req.body.email,
           phone: req.body.phone,
           businessName: req.body.businessName,
-          source: 'Free Website Builder',
-          tags: ['website-builder', req.body.palette || '', req.body.fontPair || ''].filter(Boolean),
+          source: `Free Website Builder — ${sourceLabel}`,
+          leadSource: req.body.leadSource || 'direct',
+          tags: ['website-builder', `source:${req.body.leadSource || 'direct'}`, req.body.palette || '', req.body.fontPair || ''].filter(Boolean),
         }),
       });
-      console.log('[LEAD] → GHL webhook sent');
+      console.log(`[LEAD] → GHL sent | source:${req.body.leadSource || 'direct'}`);
     } catch (e) {
       console.error('[GHL webhook error]', e.message);
     }

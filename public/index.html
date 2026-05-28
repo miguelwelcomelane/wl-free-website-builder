@@ -1475,6 +1475,7 @@ function detectTypeFE(name, handle, desc) {
 
 // Gate data (filled in from the lead gate)
 let gateData = { firstName: '', lastName: '', phone: '', email: '' };
+const leadSource = new URLSearchParams(window.location.search).get('source') || 'direct';
 
 
 // ── GATE PERSISTENCE + LAST BUILD RESTORE ────────────────────────────────────
@@ -1550,7 +1551,7 @@ async function submitGate() {
   fetch('/api/lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...gateData, source: 'Website Builder Gate', tags: ['website-builder'] }),
+    body: JSON.stringify({ ...gateData, source: 'Website Builder Gate', leadSource, tags: ['website-builder', `source:${leadSource}`] }),
   }).catch(() => {});
 
   // Small delay for UX feel
@@ -2492,7 +2493,8 @@ async function openContact() {
         businessName: name,
         palette: selectedPalette,
         fontPair: selectedFont,
-        tags: ['website-builder', 'download', selectedPalette].filter(Boolean),
+        leadSource,
+        tags: ['website-builder', 'download', `source:${leadSource}`, selectedPalette].filter(Boolean),
       }),
     }).catch(() => {});
     await downloadSite();
