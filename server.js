@@ -1082,6 +1082,37 @@ app.post('/api/lead', async (req, res) => {
         }),
       });
       console.log(`[LEAD] → GHL opportunity created in Revenue Loop pipeline`);
+
+      // 3 — Enroll in Initial Nurture workflow
+      await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/workflow/fd24d6f7-6e05-4479-98ea-41964570b555`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${GHL_API_KEY}`, 'Version': '2021-07-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventStartTime: new Date().toISOString() }),
+      }).catch(() => {});
+
+      // 4 — Create task for Jack + notify Miguel so both get alerted
+      const taskBody = {
+        title: `🆕 Website Builder Lead — ${req.body.businessName || req.body.firstName || 'New Lead'}`,
+        body: `Source: ${sourceLabel}\nName: ${req.body.firstName || ''} ${req.body.lastName || ''}\nPhone: ${req.body.phone || ''}\nEmail: ${req.body.email || ''}\nBusiness: ${req.body.businessName || ''}`,
+        dueDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        completed: false,
+        contactId,
+        assignedTo: 'qz9X506zCaTa5Au12Jb0', // Jack Hawk
+      };
+      await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tasks`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${GHL_API_KEY}`, 'Version': '2021-07-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskBody),
+      }).catch(() => {});
+
+      // Also assign a task to Miguel
+      await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tasks`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${GHL_API_KEY}`, 'Version': '2021-07-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...taskBody, assignedTo: 'qalMoMPguO3MzMKsvkzw' }), // Miguel
+      }).catch(() => {});
+
+      console.log(`[LEAD] → Tasks created for Jack + Miguel`);
     }
   } catch (e) {
     console.error('[GHL API error]', e.message);
